@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# ambiente
+.env
+
+# banco local (sqlite de dev)
+*.db
+*.sqlite3
+
+# editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
