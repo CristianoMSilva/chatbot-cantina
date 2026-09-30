@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Painel da Cantina</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 16px; margin-top: 40px; }
+  section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 16px; }
+  input, button { font-size: 14px; padding: 6px 8px; }
+  ul { padding-left: 18px; }
+  li { margin-bottom: 6px; }
+  .indisponivel { color: #999; text-decoration: line-through; }
+  .erro { color: #b00020; }
+  .aluno-item { cursor: pointer; color: #0a5; }
+  .aluno-item:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>Painel da Cantina</h1>
+
+<section id="secao-cardapio">
+  <h2>Cardápio</h2>
+  <ul id="lista-produtos"></ul>
+
+  <div>
+    <input id="novo-produto-nome" placeholder="Nome do produto" />
+    <input id="novo-produto-preco" placeholder="Preço (ex: 5.50)" />
+    <button onclick="criarProduto()">Adicionar</button>
+  </div>
+</section>
+
+<section id="secao-alunos">
+  <h2>Buscar aluno</h2>
+  <input id="busca-nome" placeholder="Nome do aluno" />
+  <button onclick="buscarAlunos()">Buscar</button>
+  <ul id="lista-alunos"></ul>
+</section>
+
+<section id="secao-detalhe-aluno" style="display: none;">
+  <h2 id="detalhe-aluno-titulo">Aluno</h2>
+  <p id="detalhe-aluno-saldo"></p>
+
+  <div>
+    <input id="valor-credito" placeholder="Valor recebido (ex: 20.00)" />
+    <button onclick="lancarCredito()">Lançar crédito</button>
+  </div>
+
+  <div style="margin-top: 8px;">
+    <input id="valor-consumo" placeholder="Valor do consumo (ex: 5.50)" />
+    <input id="descricao-consumo" placeholder="Descrição (ex: Coca-Cola lata)" />
+    <button onclick="debitarConsumo()">Registrar consumo</button>
+  </div>
+
+  <p id="mensagem-erro" class="erro"></p>
+
+  <h3>Extrato</h3>
+  <ul id="lista-extrato"></ul>
+</section>
+
+<script>
+// Every value shown to the staff is in reais; the API works in centavos
+// (integer cents), so we convert at the edges of the UI.
+const centavos = (reais) => Math.round(parseFloat(reais.replace(',', '.')) * 100);
+const reais = (centavos) => (centavos / 100).toFixed(2);
+
+let alunoSelecionadoId = null;
+
+async function carregarProdutos() {
+  const resposta = await fetch('/admin/produtos');
+  const produtos = await resposta.json();
+
+  const lista = document.getElementById('lista-produtos');
+  lista.innerHTML = '';
+
+  for (const produto of produtos) {
+    const item = document.createElement('li');
+    item.className = produto.disponivel ? '' : 'indisponivel';
+    item.textContent = `${produto.nome} — R$ ${reais(produto.preco_centavos)} `;
+
+    const botao = document.createElement('button');
+    botao.textContent = produto.disponivel ? 'Marcar indisponível' : 'Marcar disponível';
+    botao.onclick = () => alternarDisponibilidade(produto.id, !produto.disponivel);
+
+    item.appendChild(botao);
+    lista.appendChild(item);
+  }
+}
+
+async function criarProduto() {
+  const nome = document.getElementById('novo-produto-nome').value.trim();
+  const preco = document.getElementById('novo-produto-preco').value.trim();
+  if (!nome || !preco) return;
+
+  await fetch('/admin/produtos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome, preco_centavos: centavos(preco) }),
+  });
+
+  document.getElementById('novo-produto-nome').value = '';
+  document.getElementById('novo-produto-preco').value = '';
+  carregarProdutos();
+}
+
+async function alternarDisponibilidade(produtoId, disponivel) {
+  await fetch(`/admin/produtos/${produtoId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ disponivel }),
+  });
+  carregarProdutos();
+}
+
+async function buscarAlunos() {
+  const nome = document.getElementById('busca-nome').value.trim();
+  if (!nome) return;
+
+  const resposta = await fetch(`/admin/alunos/buscar?nome=${encodeURIComponent(nome)}`);
+  const alunos = await resposta.json();
+
+  const lista = document.getElementById('lista-alunos');
+  lista.innerHTML = '';
+
+  for (const aluno of alunos) {
+    const item = document.createElement('li');
+    item.className = 'aluno-item';
+    item.textContent = `${aluno.nome} — saldo: R$ ${reais(aluno.saldo_centavos)}`;
+    item.onclick = () => selecionarAluno(aluno);
+    lista.appendChild(item);
+  }
+}
+
+function selecionarAluno(aluno) {
+  alunoSelecionadoId = aluno.id;
+  document.getElementById('secao-detalhe-aluno').style.display = 'block';
+  document.getElementById('detalhe-aluno-titulo').textContent = aluno.nome;
+  atualizarSaldoNaTela(aluno.saldo_centavos);
+  document.getElementById('mensagem-erro').textContent = '';
+  carregarExtrato();
+}
+
+function atualizarSaldoNaTela(saldoCentavos) {
+  document.getElementById('detalhe-aluno-saldo').textContent = `Saldo atual: R$ ${reais(saldoCentavos)}`;
+}
+
+async function carregarExtrato() {
+  const resposta = await fetch(`/admin/alunos/${alunoSelecionadoId}/extrato`);
+  const transacoes = await resposta.json();
+
+  const lista = document.getElementById('lista-extrato');
+  lista.innerHTML = '';
+
+  for (const transacao of transacoes) {
+    const item = document.createElement('li');
+    const sinal = transacao.tipo === 'credito' ? '+' : '-';
+    item.textContent = `${sinal} R$ ${reais(transacao.valor_centavos)} — ${transacao.descricao || '(sem descrição)'}`;
+    lista.appendChild(item);
+  }
+}
+
+async function lancarCredito() {
+  const valor = document.getElementById('valor-credito').value.trim();
+  if (!valor || !alunoSelecionadoId) return;
+
+  const resposta = await fetch(`/admin/alunos/${alunoSelecionadoId}/credito`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valor_centavos: centavos(valor) }),
+  });
+  const aluno = await resposta.json();
+
+  atualizarSaldoNaTela(aluno.saldo_centavos);
+  document.getElementById('valor-credito').value = '';
+  carregarExtrato();
+}
+
+async function debitarConsumo(forcar = false) {
+  const valor = document.getElementById('valor-consumo').value.trim();
+  const descricao = document.getElementById('descricao-consumo').value.trim();
+  if (!valor || !alunoSelecionadoId) return;
+
+  const resposta = await fetch(`/admin/alunos/${alunoSelecionadoId}/consumo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valor_centavos: centavos(valor), descricao, forcar }),
+  });
+
+  if (resposta.status === 409) {
+    const detalhe = (await resposta.json()).detail;
+    const confirmar = confirm(
+      `Esse aluno não tem saldo suficiente (saldo atual: R$ ${reais(detalhe.saldo_centavos)}). ` +
+      'Deseja liberar o consumo mesmo assim (fiado)?'
+    );
+    if (confirmar) {
+      debitarConsumo(true);
+    }
+    return;
+  }
+
+  const aluno = await resposta.json();
+  atualizarSaldoNaTela(aluno.saldo_centavos);
+  document.getElementById('valor-consumo').value = '';
+  document.getElementById('descricao-consumo').value = '';
+  document.getElementById('mensagem-erro').textContent = '';
+  carregarExtrato();
+}
+
+carregarProdutos();
+</script>
+
+</body>
+</html>
