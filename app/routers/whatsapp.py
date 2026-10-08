@@ -167,7 +167,7 @@ def _continue_child_registration(db: Session, estado: EstadoConversa, texto: str
 
 
 def _main_menu() -> str:
-    return "O que você gostaria de fazer?\n1 - Ver cardápio\n2 - Ver saldo"
+    return "O que você gostaria de fazer?\n1 - Ver cardápio\n2 - Como fazer pagamento\n3 - Ver saldo"
 
 
 def _handle_menu_option(db: Session, numero: str, texto: str) -> str:
@@ -181,6 +181,15 @@ def _handle_menu_option(db: Session, numero: str, texto: str) -> str:
         return "Cardápio de hoje:\n" + "\n".join(linhas)
 
     if texto == "2":
+        # MVP: credit is still entered manually by the staff (see ADR about
+        # deferring automatic Pix payments). This just explains how it works
+        # today, it doesn't process any payment.
+        return (
+            "Para colocar crédito, combine o pagamento diretamente com a tia "
+            "da cantina. Assim que ela confirmar, o saldo é atualizado."
+        )
+
+    if texto == "3":
         responsavel = db.execute(
             select(Responsavel).where(Responsavel.whatsapp_number == numero)
         ).scalar_one_or_none()
