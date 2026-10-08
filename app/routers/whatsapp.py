@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import Aluno, EstadoConversa, Produto, Responsavel
+from app.models import Aluno, EstadoConversa, Produto, Responsavel, SolicitacaoPagamento
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
@@ -182,8 +182,15 @@ def _handle_menu_option(db: Session, numero: str, texto: str) -> str:
 
     if texto == "2":
         # MVP: credit is still entered manually by the staff (see ADR about
-        # deferring automatic Pix payments). This just explains how it works
-        # today, it doesn't process any payment.
+        # deferring automatic Pix payments). We don't process any payment
+        # here — we just flag it so the staff knows to reach out herself.
+        responsavel = db.execute(
+            select(Responsavel).where(Responsavel.whatsapp_number == numero)
+        ).scalar_one_or_none()
+        if responsavel is not None:
+            db.add(SolicitacaoPagamento(responsavel_id=responsavel.id))
+            db.commit()
+
         return (
             "Para colocar crédito, combine o pagamento diretamente com a tia "
             "da cantina. Assim que ela confirmar, o saldo é atualizado."

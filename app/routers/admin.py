@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Aluno, Produto
+from app.models import Aluno, Produto, SolicitacaoPagamento
 from app.schemas import (
     AlunoOut,
     DebitarConsumoRequest,
@@ -17,6 +17,7 @@ from app.schemas import (
     ProdutoAtualizar,
     ProdutoCriar,
     ProdutoOut,
+    SolicitacaoPagamentoOut,
     TransacaoOut,
 )
 from app.services.financeiro import InsufficientBalanceError, add_credit, debit_consumption
@@ -109,3 +110,29 @@ def debitar_consumo_endpoint(
         )
 
     return resultado.aluno
+
+
+# ---------- Payment requests ----------
+
+@router.get("/pagamentos/pendentes", response_model=list[SolicitacaoPagamentoOut])
+def listar_pagamentos_pendentes(db: Session = Depends(get_db)):
+    """List parents waiting to be contacted about a payment."""
+    stmt = (
+        select(SolicitacaoPagamento)
+        .where(SolicitacaoPagamento.resolvida.is_(False))
+        .order_by(SolicitacaoPagamento.criado_em)
+    )
+    return db.execute(stmt).scalars().all()
+
+
+@router.post("/pagamentos/{solicitacao_id}/resolver", response_model=SolicitacaoPagamentoOut)
+def resolver_pagamento(solicitacao_id: int, db: Session = Depends(get_db)):
+    """Mark a payment request as handled (staff already talked to the parent)."""
+    solicitacao = db.get(SolicitacaoPagamento, solicitacao_id)
+    if solicitacao is None:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+
+    solicitacao.resolvida = True
+    db.commit()
+    db.refresh(solicitacao)
+    return solicitacao

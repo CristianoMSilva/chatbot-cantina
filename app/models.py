@@ -113,3 +113,21 @@ class EstadoConversa(Base):
     etapa: Mapped[str] = mapped_column(String(50), nullable=False)
     contexto_json: Mapped[str] = mapped_column(Text, default="{}")
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SolicitacaoPagamento(Base):
+    """A flag raised when a parent picks "payment" in the bot menu.
+
+    The bot itself never handles the payment — it just lets the staff know
+    someone wants to pay, so she can reach out manually (see the ADR about
+    deferring automatic Pix). `resolvida=True` once she's taken care of it.
+    """
+
+    __tablename__ = "solicitacoes_pagamento"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    responsavel_id: Mapped[int] = mapped_column(ForeignKey("responsaveis.id"), nullable=False, index=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    resolvida: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    responsavel: Mapped["Responsavel"] = relationship()

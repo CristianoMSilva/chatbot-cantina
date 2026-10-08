@@ -21,6 +21,11 @@
 
 <h1>Painel da Cantina</h1>
 
+<section id="secao-pagamentos">
+  <h2>Pedidos de pagamento pendentes</h2>
+  <ul id="lista-pagamentos"></ul>
+</section>
+
 <section id="secao-cardapio">
   <h2>Cardápio</h2>
   <ul id="lista-produtos"></ul>
@@ -67,6 +72,39 @@ const centavos = (reais) => Math.round(parseFloat(reais.replace(',', '.')) * 100
 const reais = (centavos) => (centavos / 100).toFixed(2);
 
 let alunoSelecionadoId = null;
+
+async function carregarPagamentosPendentes() {
+  const resposta = await fetch('/admin/pagamentos/pendentes');
+  const pedidos = await resposta.json();
+
+  const lista = document.getElementById('lista-pagamentos');
+  lista.innerHTML = '';
+
+  if (pedidos.length === 0) {
+    const item = document.createElement('li');
+    item.textContent = 'Nenhum pedido pendente no momento.';
+    lista.appendChild(item);
+    return;
+  }
+
+  for (const pedido of pedidos) {
+    const item = document.createElement('li');
+    const quando = new Date(pedido.criado_em).toLocaleString('pt-BR');
+    item.textContent = `${pedido.responsavel.nome} (${pedido.responsavel.whatsapp_number}) — pedido em ${quando} `;
+
+    const botao = document.createElement('button');
+    botao.textContent = 'Marcar como resolvido';
+    botao.onclick = () => resolverPagamento(pedido.id);
+
+    item.appendChild(botao);
+    lista.appendChild(item);
+  }
+}
+
+async function resolverPagamento(pedidoId) {
+  await fetch(`/admin/pagamentos/${pedidoId}/resolver`, { method: 'POST' });
+  carregarPagamentosPendentes();
+}
 
 async function carregarProdutos() {
   const resposta = await fetch('/admin/produtos');
@@ -208,6 +246,7 @@ async function debitarConsumo(forcar = false) {
   carregarExtrato();
 }
 
+carregarPagamentosPendentes();
 carregarProdutos();
 </script>
 

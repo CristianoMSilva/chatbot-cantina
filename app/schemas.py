@@ -5,6 +5,8 @@ realmente recebe (request) e devolve (response) — nem sempre é a mesma coisa
 (por exemplo, o cliente nunca envia o `id`, e a gente nunca devolve tudo que
 está salvo no banco sem pensar).
 """
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import OrigemTransacao, TipoTransacao
@@ -77,3 +79,24 @@ class DebitarConsumoRequest(BaseModel):
     # Se o aluno não tem saldo e não pode fiado, a API recusa o débito por
     # padrão. `forcar=True` é a tia dizendo "eu sei, deixa passar mesmo assim".
     forcar: bool = False
+
+
+# ---------- Payment requests ----------
+
+class ResponsavelOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    whatsapp_number: str
+
+
+class SolicitacaoPagamentoOut(BaseModel):
+    """A pending (or resolved) "wants to pay" flag raised from the bot menu."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    criado_em: datetime
+    resolvida: bool
+    responsavel: ResponsavelOut
