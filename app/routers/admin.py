@@ -9,14 +9,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Aluno, Produto, SolicitacaoPagamento
+from app.models import Aluno, Produto, Responsavel, SolicitacaoPagamento
 from app.schemas import (
+    AlunoCriarManual,
     AlunoOut,
     DebitarConsumoRequest,
     LancarCreditoRequest,
     ProdutoAtualizar,
     ProdutoCriar,
     ProdutoOut,
+    ResponsavelCriar,
+    ResponsavelOut,
     SolicitacaoPagamentoOut,
     TransacaoOut,
 )
@@ -53,6 +56,45 @@ def atualizar_produto(produto_id: int, dados: ProdutoAtualizar, db: Session = De
     db.commit()
     db.refresh(produto)
     return produto
+
+
+# ---------- Parents (manual registration, Phase A — the bot normally does this) ----------
+
+@router.get("/responsaveis/buscar", response_model=list[ResponsavelOut])
+def buscar_responsaveis(nome: str, db: Session = Depends(get_db)):
+    """Search parents by (partial) name — used to pick one before adding a child."""
+    stmt = select(Responsavel).where(Responsavel.nome.ilike(f"%{nome}%"))
+    return db.execute(stmt).scalars().all()
+
+
+@router.post("/responsaveis", response_model=ResponsavelOut, status_code=201)
+def criar_responsavel(dados: ResponsavelCriar, db: Session = Depends(get_db)):
+    existente = db.execute(
+        select(Responsavel).where(Responsavel.whatsapp_number == dados.whatsapp_number)
+    ).scalar_one_or_none()
+    if existente is not None:
+        raise HTTPException(
+            status_code=409, detail="A parent with this WhatsApp number already exists"
+        )
+
+    responsavel = Responsavel(**dados.model_dump())
+    db.add(responsavel)
+    db.commit()
+    db.refresh(responsavel)
+    return responsavel
+
+
+@router.post("/responsaveis/{responsavel_id}/alunos", response_model=AlunoOut, status_code=201)
+def criar_aluno(responsavel_id: int, dados: AlunoCriarManual, db: Session = Depends(get_db)):
+    responsavel = db.get(Responsavel, responsavel_id)
+    if responsavel is None:
+        raise HTTPException(status_code=404, detail="Parent not found")
+
+    aluno = Aluno(responsavel_id=responsavel_id, **dados.model_dump())
+    db.add(aluno)
+    db.commit()
+    db.refresh(aluno)
+    return aluno
 
 
 # ---------- Students ----------

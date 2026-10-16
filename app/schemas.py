@@ -38,7 +38,25 @@ class ProdutoOut(ProdutoBase):
     disponivel: bool
 
 
-# ---------- Aluno ----------
+# ---------- Responsável / Aluno ----------
+
+class ResponsavelCriar(BaseModel):
+    """What the staff fills in to register a new parent manually from the panel.
+
+    This is the same information the bot collects on WhatsApp — it just lets
+    the staff do it herself, for Phase A, before the bot is connected.
+    """
+    nome: str
+    whatsapp_number: str
+
+
+class AlunoCriarManual(BaseModel):
+    """What the staff fills in to add a child to an existing parent."""
+    nome: str
+    serie: str | None = None
+    turno: str | None = None
+    pode_fiado: bool = False
+
 
 class AlunoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

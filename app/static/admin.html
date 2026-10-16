@@ -13,6 +13,7 @@
   li { margin-bottom: 6px; }
   .indisponivel { color: #999; text-decoration: line-through; }
   .erro { color: #b00020; }
+  .sucesso { color: #0a5; }
   .aluno-item { cursor: pointer; color: #0a5; }
   .aluno-item:hover { text-decoration: underline; }
 </style>
@@ -35,6 +36,35 @@
     <input id="novo-produto-preco" placeholder="Preço (ex: 5.50)" />
     <button onclick="criarProduto()">Adicionar</button>
   </div>
+</section>
+
+<section id="secao-cadastro">
+  <h2>Cadastrar responsável / aluno</h2>
+
+  <div>
+    <input id="busca-responsavel-nome" placeholder="Buscar responsável pelo nome" />
+    <button onclick="buscarResponsaveis()">Buscar</button>
+    <ul id="lista-responsaveis"></ul>
+  </div>
+
+  <div style="margin-top: 12px;">
+    <p>Ou cadastre um responsável novo:</p>
+    <input id="novo-responsavel-nome" placeholder="Nome do responsável" />
+    <input id="novo-responsavel-whatsapp" placeholder="WhatsApp (ex: 5514999990000)" />
+    <button onclick="criarResponsavel()">Cadastrar responsável</button>
+  </div>
+
+  <div id="area-responsavel-selecionado" style="display: none; margin-top: 16px; border-top: 1px solid #ddd; padding-top: 12px;">
+    <p>Responsável selecionado: <strong id="responsavel-selecionado-nome"></strong></p>
+
+    <input id="novo-aluno-nome" placeholder="Nome completo do filho(a)" />
+    <input id="novo-aluno-serie" placeholder="Série (ex: 5 ano)" />
+    <input id="novo-aluno-turno" placeholder="Turno (manha/tarde)" />
+    <label><input type="checkbox" id="novo-aluno-fiado" /> Pode fiado</label>
+    <button onclick="criarAluno()">Adicionar filho(a)</button>
+  </div>
+
+  <p id="mensagem-cadastro"></p>
 </section>
 
 <section id="secao-alunos">
@@ -171,6 +201,88 @@ async function alternarDisponibilidade(produtoId, disponivel) {
     body: JSON.stringify({ disponivel }),
   });
   carregarProdutos();
+}
+
+let responsavelSelecionadoId = null;
+
+async function buscarResponsaveis() {
+  const nome = document.getElementById('busca-responsavel-nome').value.trim();
+  if (!nome) return;
+
+  const resposta = await fetch(`/admin/responsaveis/buscar?nome=${encodeURIComponent(nome)}`);
+  const responsaveis = await resposta.json();
+
+  const lista = document.getElementById('lista-responsaveis');
+  lista.innerHTML = '';
+
+  for (const responsavel of responsaveis) {
+    const item = document.createElement('li');
+    item.className = 'aluno-item';
+    item.textContent = `${responsavel.nome} (${responsavel.whatsapp_number})`;
+    item.onclick = () => selecionarResponsavel(responsavel);
+    lista.appendChild(item);
+  }
+}
+
+function selecionarResponsavel(responsavel) {
+  responsavelSelecionadoId = responsavel.id;
+  document.getElementById('area-responsavel-selecionado').style.display = 'block';
+  document.getElementById('responsavel-selecionado-nome').textContent =
+    `${responsavel.nome} (${responsavel.whatsapp_number})`;
+  const mensagem = document.getElementById('mensagem-cadastro');
+  mensagem.textContent = '';
+}
+
+async function criarResponsavel() {
+  const nome = document.getElementById('novo-responsavel-nome').value.trim();
+  const whatsapp = document.getElementById('novo-responsavel-whatsapp').value.trim();
+  const mensagem = document.getElementById('mensagem-cadastro');
+  if (!nome || !whatsapp) return;
+
+  const resposta = await fetch('/admin/responsaveis', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome, whatsapp_number: whatsapp }),
+  });
+
+  if (resposta.status === 409) {
+    mensagem.className = 'erro';
+    mensagem.textContent = 'Já existe um responsável com esse número de WhatsApp.';
+    return;
+  }
+
+  const responsavel = await resposta.json();
+  document.getElementById('novo-responsavel-nome').value = '';
+  document.getElementById('novo-responsavel-whatsapp').value = '';
+  selecionarResponsavel(responsavel);
+}
+
+async function criarAluno() {
+  const nome = document.getElementById('novo-aluno-nome').value.trim();
+  const serie = document.getElementById('novo-aluno-serie').value.trim();
+  const turno = document.getElementById('novo-aluno-turno').value.trim();
+  const podeFiado = document.getElementById('novo-aluno-fiado').checked;
+  const mensagem = document.getElementById('mensagem-cadastro');
+  if (!nome || !responsavelSelecionadoId) return;
+
+  await fetch(`/admin/responsaveis/${responsavelSelecionadoId}/alunos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nome,
+      serie: serie || null,
+      turno: turno || null,
+      pode_fiado: podeFiado,
+    }),
+  });
+
+  document.getElementById('novo-aluno-nome').value = '';
+  document.getElementById('novo-aluno-serie').value = '';
+  document.getElementById('novo-aluno-turno').value = '';
+  document.getElementById('novo-aluno-fiado').checked = false;
+
+  mensagem.className = 'sucesso';
+  mensagem.textContent = `Filho(a) "${nome}" cadastrado(a) com sucesso!`;
 }
 
 async function buscarAlunos() {
