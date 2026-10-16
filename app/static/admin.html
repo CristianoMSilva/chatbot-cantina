@@ -16,6 +16,7 @@
   .sucesso { color: #0a5; }
   .aluno-item { cursor: pointer; color: #0a5; }
   .aluno-item:hover { text-decoration: underline; }
+  .forcado { color: #b00020; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -298,23 +299,49 @@ async function buscarAlunos() {
   for (const aluno of alunos) {
     const item = document.createElement('li');
     item.className = 'aluno-item';
+    item.style.color = corSaldo(aluno.saldo_centavos, aluno.pode_fiado);
     item.textContent = `${aluno.nome} — saldo: R$ ${reais(aluno.saldo_centavos)}`;
     item.onclick = () => selecionarAluno(aluno);
     lista.appendChild(item);
   }
 }
 
-function selecionarAluno(aluno) {
+// Vermelho: saldo negativo (independente de poder fiado — está devendo).
+// Verde: saldo positivo, ou saldo zerado mas o aluno pode fiado (sem risco).
+// Azul: saldo zerado e não pode fiado (próxima compra vai bloquear).
+function corSaldo(saldoCentavos, podeFiado) {
+  if (saldoCentavos < 0) return '#b00020';
+  if (saldoCentavos > 0 || podeFiado) return '#0a5';
+  return '#06c';
+}
+
+async function selecionarAluno(aluno) {
   alunoSelecionadoId = aluno.id;
   document.getElementById('secao-detalhe-aluno').style.display = 'block';
   document.getElementById('detalhe-aluno-titulo').textContent = aluno.nome;
-  atualizarSaldoNaTela(aluno.saldo_centavos);
   document.getElementById('mensagem-erro').textContent = '';
+
+  // Nunca confia no saldo que veio junto do resultado da busca — aquele
+  // objeto fica "congelado" no momento em que a busca foi feita. Se a tia
+  // clicar de novo no mesmo nome depois de lançar crédito/consumo (sem
+  // buscar de novo), o saldo errado antigo voltaria a aparecer. Por isso
+  // buscamos o aluno atualizado direto do servidor sempre que ele é selecionado.
+  await atualizarSaldoAtual();
   carregarExtrato();
 }
 
-function atualizarSaldoNaTela(saldoCentavos) {
-  document.getElementById('detalhe-aluno-saldo').textContent = `Saldo atual: R$ ${reais(saldoCentavos)}`;
+async function atualizarSaldoAtual() {
+  const resposta = await fetch(`/admin/alunos/${alunoSelecionadoId}`);
+  const aluno = await resposta.json();
+  atualizarSaldoNaTela(aluno.saldo_centavos, aluno.pode_fiado);
+}
+
+function atualizarSaldoNaTela(saldoCentavos, podeFiado) {
+  const cor = corSaldo(saldoCentavos, podeFiado);
+  const saldoEl = document.getElementById('detalhe-aluno-saldo');
+  saldoEl.textContent = `Saldo atual: R$ ${reais(saldoCentavos)}`;
+  saldoEl.style.color = cor;
+  document.getElementById('detalhe-aluno-titulo').style.color = cor;
 }
 
 async function carregarExtrato() {
@@ -327,7 +354,14 @@ async function carregarExtrato() {
   for (const transacao of transacoes) {
     const item = document.createElement('li');
     const sinal = transacao.tipo === 'credito' ? '+' : '-';
-    item.textContent = `${sinal} R$ ${reais(transacao.valor_centavos)} — ${transacao.descricao || '(sem descrição)'}`;
+    let texto = `${sinal} R$ ${reais(transacao.valor_centavos)} — ${transacao.descricao || '(sem descrição)'}`;
+
+    if (transacao.forcado) {
+      texto += ' ⚠ liberado manualmente sem fiado';
+      item.className = 'forcado';
+    }
+
+    item.textContent = texto;
     lista.appendChild(item);
   }
 }
@@ -343,7 +377,7 @@ async function lancarCredito() {
   });
   const aluno = await resposta.json();
 
-  atualizarSaldoNaTela(aluno.saldo_centavos);
+  atualizarSaldoNaTela(aluno.saldo_centavos, aluno.pode_fiado);
   document.getElementById('valor-credito').value = '';
   carregarExtrato();
 }
@@ -372,7 +406,7 @@ async function debitarConsumo(forcar = false) {
   }
 
   const aluno = await resposta.json();
-  atualizarSaldoNaTela(aluno.saldo_centavos);
+  atualizarSaldoNaTela(aluno.saldo_centavos, aluno.pode_fiado);
   document.getElementById('valor-consumo').value = '';
   document.getElementById('descricao-consumo').value = '';
   document.getElementById('mensagem-erro').textContent = '';
