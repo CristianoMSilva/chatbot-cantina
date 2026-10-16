@@ -118,13 +118,34 @@ async function carregarProdutos() {
     item.className = produto.disponivel ? '' : 'indisponivel';
     item.textContent = `${produto.nome} — R$ ${reais(produto.preco_centavos)} `;
 
-    const botao = document.createElement('button');
-    botao.textContent = produto.disponivel ? 'Marcar indisponível' : 'Marcar disponível';
-    botao.onclick = () => alternarDisponibilidade(produto.id, !produto.disponivel);
+    const botaoDisponibilidade = document.createElement('button');
+    botaoDisponibilidade.textContent = produto.disponivel ? 'Marcar indisponível' : 'Marcar disponível';
+    botaoDisponibilidade.onclick = () => alternarDisponibilidade(produto.id, !produto.disponivel);
 
-    item.appendChild(botao);
+    const botaoEditar = document.createElement('button');
+    botaoEditar.textContent = 'Editar';
+    botaoEditar.onclick = () => editarProduto(produto);
+
+    item.appendChild(botaoDisponibilidade);
+    item.appendChild(botaoEditar);
     lista.appendChild(item);
   }
+}
+
+async function editarProduto(produto) {
+  const novoNome = prompt('Novo nome do produto:', produto.nome);
+  if (novoNome === null || novoNome.trim() === '') return;
+
+  const novoPreco = prompt('Novo preço (ex: 5.50):', reais(produto.preco_centavos));
+  if (novoPreco === null || novoPreco.trim() === '') return;
+
+  await fetch(`/admin/produtos/${produto.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome: novoNome.trim(), preco_centavos: centavos(novoPreco) }),
+  });
+
+  carregarProdutos();
 }
 
 async function criarProduto() {
