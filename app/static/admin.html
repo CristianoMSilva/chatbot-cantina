@@ -2,92 +2,211 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Painel da Cantina</title>
 <style>
-  body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 16px; margin-top: 40px; }
-  section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 16px; }
-  input, button { font-size: 14px; padding: 6px 8px; }
-  ul { padding-left: 18px; }
-  li { margin-bottom: 6px; }
-  .indisponivel { color: #999; text-decoration: line-through; }
-  .erro { color: #b00020; }
-  .sucesso { color: #0a5; }
-  .aluno-item { cursor: pointer; color: #0a5; }
+  :root {
+    --bg: #FAF6EF;
+    --card-bg: #FFFFFF;
+    --border: #EADFCD;
+    --text: #3A2E22;
+    --text-muted: #8C7B68;
+    --primary: #C76B3C;
+    --primary-hover: #B35A2E;
+    --secondary-bg: #F1E9DB;
+    --secondary-text: #5B4A38;
+    --erro: #b00020;
+    --sucesso: #0a5;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    max-width: 720px;
+    margin: 32px auto;
+    padding: 0 16px 48px;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+
+  header.topo { margin-bottom: 8px; }
+  h1 { font-size: 22px; margin: 0; }
+  .subtitulo { color: var(--text-muted); font-size: 14px; margin: 2px 0 0; }
+
+  h2 {
+    font-size: 16px;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--secondary-bg);
+  }
+  h3 { font-size: 14px; color: var(--text-muted); margin: 20px 0 8px; }
+
+  section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 18px 20px;
+    margin-top: 16px;
+    box-shadow: 0 1px 3px rgba(58, 46, 34, 0.06);
+  }
+
+  .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .form-row input { flex: 1 1 160px; }
+
+  input, button {
+    font-size: 14px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: inherit;
+  }
+  input { background: #fff; color: var(--text); }
+  input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+  button {
+    cursor: pointer;
+    border: none;
+    background: var(--secondary-bg);
+    color: var(--secondary-text);
+    font-weight: 600;
+    transition: filter 0.15s ease;
+  }
+  button:hover { filter: brightness(0.96); }
+
+  .btn-primario { background: var(--primary); color: #fff; }
+  .btn-primario:hover { background: var(--primary-hover); }
+
+  ul { list-style: none; padding: 0; margin: 10px 0 0; }
+  li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  li:last-child { border-bottom: none; }
+
+  .dica {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin: 10px 0 0;
+  }
+
+  .indisponivel { color: #a79a89; text-decoration: line-through; }
+  .erro { color: var(--erro); font-weight: 600; }
+  .sucesso { color: var(--sucesso); font-weight: 600; }
+
+  .aluno-item { cursor: pointer; font-weight: 600; }
   .aluno-item:hover { text-decoration: underline; }
-  .forcado { color: #b00020; font-weight: bold; }
+
+  .forcado { color: var(--erro); font-weight: 700; }
+
+  #detalhe-aluno-titulo { margin-bottom: 4px; }
+  #detalhe-aluno-saldo {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 15px;
+    margin: 0 0 16px;
+  }
+
+  #mensagem-cadastro, #mensagem-erro { min-height: 1.2em; }
+
+  @media (max-width: 480px) {
+    body { margin: 16px auto; padding: 0 12px 40px; }
+    section { padding: 14px; border-radius: 10px; }
+    input, button { font-size: 16px; padding: 11px 12px; }
+    .form-row { gap: 10px; }
+  }
 </style>
 </head>
 <body>
 
-<h1>Painel da Cantina</h1>
+<header class="topo">
+  <h1>🍽️ Painel da Cantina</h1>
+  <p class="subtitulo">Cantina Tia Eleusa — Colégio Athena</p>
+</header>
 
 <section id="secao-pagamentos">
-  <h2>Pedidos de pagamento pendentes</h2>
+  <h2>💰 Pedidos de pagamento pendentes</h2>
   <ul id="lista-pagamentos"></ul>
 </section>
 
 <section id="secao-cardapio">
-  <h2>Cardápio</h2>
+  <h2>🥪 Cardápio</h2>
   <ul id="lista-produtos"></ul>
 
-  <div>
+  <div class="form-row">
     <input id="novo-produto-nome" placeholder="Nome do produto" />
     <input id="novo-produto-preco" placeholder="Preço (ex: 5.50)" />
-    <button onclick="criarProduto()">Adicionar</button>
+    <button class="btn-primario" onclick="criarProduto()">Adicionar</button>
   </div>
 </section>
 
 <section id="secao-cadastro">
-  <h2>Cadastrar responsável / aluno</h2>
+  <h2>👪 Cadastrar responsável / aluno</h2>
 
-  <div>
+  <div class="form-row">
     <input id="busca-responsavel-nome" placeholder="Buscar responsável pelo nome" />
     <button onclick="buscarResponsaveis()">Buscar</button>
-    <ul id="lista-responsaveis"></ul>
   </div>
+  <ul id="lista-responsaveis"></ul>
 
-  <div style="margin-top: 12px;">
-    <p>Ou cadastre um responsável novo:</p>
+  <p class="dica">Ou cadastre um responsável novo:</p>
+  <div class="form-row">
     <input id="novo-responsavel-nome" placeholder="Nome do responsável" />
     <input id="novo-responsavel-whatsapp" placeholder="WhatsApp (ex: 5514999990000)" />
-    <button onclick="criarResponsavel()">Cadastrar responsável</button>
+    <button class="btn-primario" onclick="criarResponsavel()">Cadastrar responsável</button>
   </div>
 
-  <div id="area-responsavel-selecionado" style="display: none; margin-top: 16px; border-top: 1px solid #ddd; padding-top: 12px;">
+  <div id="area-responsavel-selecionado" style="display: none; margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px;">
     <p>Responsável selecionado: <strong id="responsavel-selecionado-nome"></strong></p>
 
-    <input id="novo-aluno-nome" placeholder="Nome completo do filho(a)" />
-    <input id="novo-aluno-serie" placeholder="Série (ex: 5 ano)" />
-    <input id="novo-aluno-turno" placeholder="Turno (manha/tarde)" />
-    <label><input type="checkbox" id="novo-aluno-fiado" /> Pode fiado</label>
-    <button onclick="criarAluno()">Adicionar filho(a)</button>
+    <div class="form-row">
+      <input id="novo-aluno-nome" placeholder="Nome completo do filho(a)" />
+      <input id="novo-aluno-serie" placeholder="Série (ex: 5 ano)" />
+      <input id="novo-aluno-turno" placeholder="Turno (manha/tarde)" />
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" id="novo-aluno-fiado" /> Pode fiado</label>
+      <button class="btn-primario" onclick="criarAluno()">Adicionar filho(a)</button>
+    </div>
   </div>
 
   <p id="mensagem-cadastro"></p>
 </section>
 
 <section id="secao-alunos">
-  <h2>Buscar aluno</h2>
-  <input id="busca-nome" placeholder="Nome do aluno" />
-  <button onclick="buscarAlunos()">Buscar</button>
+  <h2>🔎 Buscar aluno</h2>
+  <div class="form-row">
+    <input id="busca-nome" placeholder="Nome do aluno" />
+    <button class="btn-primario" onclick="buscarAlunos()">Buscar</button>
+  </div>
   <ul id="lista-alunos"></ul>
+  <p class="dica">💡 Clique no nome de um aluno na lista pra ver o saldo, lançar crédito ou registrar um consumo.</p>
 </section>
 
 <section id="secao-detalhe-aluno" style="display: none;">
   <h2 id="detalhe-aluno-titulo">Aluno</h2>
   <p id="detalhe-aluno-saldo"></p>
 
-  <div>
+  <div class="form-row">
     <input id="valor-credito" placeholder="Valor recebido (ex: 20.00)" />
-    <button onclick="lancarCredito()">Lançar crédito</button>
+    <button class="btn-primario" onclick="lancarCredito()">Lançar crédito</button>
   </div>
 
-  <div style="margin-top: 8px;">
+  <div class="form-row">
     <input id="valor-consumo" placeholder="Valor do consumo (ex: 5.50)" />
     <input id="descricao-consumo" placeholder="Descrição (ex: Coca-Cola lata)" />
-    <button onclick="debitarConsumo()">Registrar consumo</button>
+    <button class="btn-primario" onclick="debitarConsumo()">Registrar consumo</button>
   </div>
 
   <p id="mensagem-erro" class="erro"></p>
