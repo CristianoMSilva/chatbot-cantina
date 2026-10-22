@@ -67,10 +67,18 @@ def debit_consumption(
     allowed to run a tab (`pode_fiado=False`), this raises
     InsufficientBalanceError — unless `forcar=True`, which is the staff
     explicitly overriding the rule for this one purchase.
+
+    When the staff does override it this way, the resulting transaction is
+    flagged (`Transacao.forcado=True`) so it stays visible in the student's
+    extrato afterwards — the confirmation prompt in the staff panel only
+    appears for a moment, but this flag is the lasting record that this
+    particular purchase broke the student's own no-fiado rule and the staff
+    may want to follow up with the parent.
     """
     saldo_resultante = aluno.saldo_centavos - valor_centavos
+    bloqueado_por_padrao = saldo_resultante < 0 and not aluno.pode_fiado
 
-    if saldo_resultante < 0 and not aluno.pode_fiado and not forcar:
+    if bloqueado_por_padrao and not forcar:
         raise InsufficientBalanceError(aluno.id, aluno.saldo_centavos, valor_centavos)
 
     aluno.saldo_centavos = saldo_resultante
@@ -81,6 +89,7 @@ def debit_consumption(
         origem=OrigemTransacao.MANUAL,
         valor_centavos=valor_centavos,
         descricao=descricao,
+        forcado=bloqueado_por_padrao and forcar,
     )
     db.add(transacao)
     db.commit()

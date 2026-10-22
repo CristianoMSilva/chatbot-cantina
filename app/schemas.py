@@ -81,6 +81,7 @@ class TransacaoOut(BaseModel):
     origem: OrigemTransacao
     valor_centavos: int
     descricao: str | None
+    forcado: bool
 
 
 class LancarCreditoRequest(BaseModel):

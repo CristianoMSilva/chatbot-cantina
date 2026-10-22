@@ -106,6 +106,21 @@ def buscar_alunos(nome: str, db: Session = Depends(get_db)):
     return db.execute(stmt).scalars().all()
 
 
+@router.get("/alunos/{aluno_id}", response_model=AlunoOut)
+def obter_aluno(aluno_id: int, db: Session = Depends(get_db)):
+    """Fetch a single student with its current balance.
+
+    The staff panel calls this whenever a student is selected, instead of
+    trusting a search-result object that may be stale (e.g. if the staff
+    clicks the same search result again after already crediting/debiting
+    that student — the search list itself isn't re-fetched automatically).
+    """
+    aluno = db.get(Aluno, aluno_id)
+    if aluno is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return aluno
+
+
 @router.get("/alunos/{aluno_id}/extrato", response_model=list[TransacaoOut])
 def extrato_aluno(aluno_id: int, db: Session = Depends(get_db)):
     aluno = db.get(Aluno, aluno_id)

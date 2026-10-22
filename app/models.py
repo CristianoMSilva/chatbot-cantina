@@ -95,6 +95,12 @@ class Transacao(Base):
     valor_centavos: Mapped[int] = mapped_column(Integer, nullable=False)
     descricao: Mapped[str] = mapped_column(Text, nullable=True)
 
+    # True só para um CONSUMO que só passou porque a tia liberou manualmente
+    # (aluno sem saldo e sem permissão de fiado, confirmado "mesmo assim" no
+    # painel). Fica registrado pra não se perder depois que a caixa de
+    # confirmação já fechou — ver `debit_consumption` em services/financeiro.py.
+    forcado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     aluno: Mapped["Aluno"] = relationship(back_populates="transacoes")
