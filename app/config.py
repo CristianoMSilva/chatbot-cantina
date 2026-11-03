@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     whatsapp_access_token: str = ""
     whatsapp_phone_number_id: str = ""
 
+    # Login do painel da tia
+    secret_key: str = "troque-esta-chave-no-env"
+    admin_usuario: str = "tia"
+    admin_senha_hash: str = ""
+    # True em produção (HTTPS): o cookie de sessão só trafega por conexão segura.
+    sessao_cookie_segura: bool = False
+
     cantina_nome: str = "Cantina Tia Eleusa"
     escola_nome: str = "Colégio Athena"
 

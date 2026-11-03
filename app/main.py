@@ -4,12 +4,14 @@ Run locally with: uvicorn app.main:app --reload
 """
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
 
+from app.auth import esta_logado
+from app.config import settings
 from app.database import criar_tabelas
-from app.routers import admin, whatsapp
+from app.routers import admin, auth, whatsapp
 
 
 @asynccontextmanager
@@ -21,11 +23,29 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Chatbot Cantina", lifespan=lifespan)
 
+# Signed session cookie used by the staff login (expires after 12 hours).
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key,
+    https_only=settings.sessao_cookie_segura,
+    same_site="lax",
+    max_age=12 * 60 * 60,
+)
+
 app.include_router(whatsapp.router)
 app.include_router(admin.router)
+app.include_router(auth.router)
 
-# Staff admin panel, served as static files at /painel/admin.html
-app.mount("/painel", StaticFiles(directory="app/static", html=True), name="painel")
+
+# Staff admin panel: only reachable after logging in.
+@app.get("/painel", include_in_schema=False)
+@app.get("/painel/", include_in_schema=False)
+@app.get("/painel/admin.html", include_in_schema=False)
+def painel(request: Request):
+    if not esta_logado(request):
+        return RedirectResponse("/login", status_code=303)
+    return FileResponse("app/static/admin.html")
+
 
 # Public site: landing page + privacy policy (LGPD), served separately
 # from the admin panel (which lives at /painel).

@@ -1,13 +1,12 @@
 """Admin router: endpoints used by the canteen staff's panel.
 
-Not authenticated yet — for now this only runs locally, on the staff's own
-computer. Authentication can be added later if this ever needs to be
-reachable from outside.
+Every route here requires the staff login (see app/auth.py).
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import exigir_login
 from app.database import get_db
 from app.models import Aluno, Produto, Responsavel, SolicitacaoPagamento
 from app.schemas import (
@@ -25,7 +24,7 @@ from app.schemas import (
 )
 from app.services.financeiro import InsufficientBalanceError, add_credit, debit_consumption
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(exigir_login)])
 
 
 # ---------- Products (menu) ----------

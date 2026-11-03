@@ -216,6 +216,25 @@
 </section>
 
 <script>
+// If the login session expired, any API call answers 401: send the staff
+// back to the login page instead of showing a broken panel.
+const fetchOriginal = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const resposta = await fetchOriginal(...args);
+  if (resposta.status === 401) {
+    window.location.href = '/login';
+  }
+  return resposta;
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sair = document.createElement('a');
+  sair.href = '/logout';
+  sair.textContent = 'Sair';
+  sair.style.cssText = 'position:fixed;top:12px;right:16px;font-weight:600;color:inherit;';
+  document.body.appendChild(sair);
+});
+
 // Every value shown to the staff is in reais; the API works in centavos
 // (integer cents), so we convert at the edges of the UI.
 const centavos = (reais) => Math.round(parseFloat(reais.replace(',', '.')) * 100);
