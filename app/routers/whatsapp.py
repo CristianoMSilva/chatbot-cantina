@@ -8,6 +8,8 @@ Conversation states (per phone number, stored in `EstadoConversa.etapa`):
  - "menu": normal menu (view the day's menu, view balance)
 """
 import json
+import urllib.error
+import urllib.request
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
@@ -18,6 +20,8 @@ from app.database import get_db
 from app.models import Aluno, EstadoConversa, Produto, Responsavel, SolicitacaoPagamento
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
+
+GRAPH_API_URL = "https://graph.facebook.com/v21.0"
 
 
 @router.get("/webhook")
@@ -64,12 +68,40 @@ def _extract_message(payload: dict) -> tuple[str, str] | None:
 
 
 def send_message(numero: str, texto: str) -> None:
-    """Send a WhatsApp message back to the user.
+    """Send a WhatsApp text message back to the user via the Meta Graph API.
 
-    Stub for now — this print will be replaced by the real Meta Graph API
-    call once we have an access token and phone number id configured.
+    If the token or phone number id is missing (e.g. local development),
+    the message is only printed. Errors are logged but never raised, so the
+    webhook always answers 200 and Meta does not keep retrying.
     """
     print(f"[WHATSAPP -> {numero}] {texto}")
+
+    if not settings.whatsapp_access_token or not settings.whatsapp_phone_number_id:
+        return
+
+    url = f"{GRAPH_API_URL}/{settings.whatsapp_phone_number_id}/messages"
+    corpo = json.dumps({
+        "messaging_product": "whatsapp",
+        "to": numero,
+        "type": "text",
+        "text": {"body": texto},
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=corpo,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {settings.whatsapp_access_token}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            print(f"[WHATSAPP SENT] status={resp.status}")
+    except urllib.error.HTTPError as e:
+        print(f"[WHATSAPP ERROR] status={e.code} body={e.read().decode('utf-8', 'replace')}")
+    except urllib.error.URLError as e:
+        print(f"[WHATSAPP ERROR] {e.reason}")
 
 
 def process_message(db: Session, numero: str, texto: str) -> str:
