@@ -39,6 +39,7 @@ def verify_webhook(
 @router.post("/webhook")
 async def receive_message(request: Request, db: Session = Depends(get_db)):
     payload = await request.json()
+    _log_status_errors(payload)
     mensagem = _extract_message(payload)
 
     if mensagem is None:
@@ -50,6 +51,20 @@ async def receive_message(request: Request, db: Session = Depends(get_db)):
     send_message(numero, resposta)
 
     return {"status": "ok"}
+
+
+def _log_status_errors(payload: dict) -> None:
+    """Log delivery statuses Meta reports (sent/delivered/failed), with errors."""
+    try:
+        for entry in payload.get("entry", []):
+            for change in entry.get("changes", []):
+                for st in change.get("value", {}).get("statuses", []) or []:
+                    print(
+                        f"[WHATSAPP STATUS] to={st.get('recipient_id')} "
+                        f"status={st.get('status')} errors={st.get('errors')}"
+                    )
+    except AttributeError:
+        pass
 
 
 def _extract_message(payload: dict) -> tuple[str, str] | None:
